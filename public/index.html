@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>million checkboxes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 50px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        input[type="checkbox"] {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            accent-color: #00d4ff;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            border-radius: 6px;
+            background-color: rgba(10, 14, 39, 0.8);
+        }
+
+        input[type="checkbox"]:hover {
+            transform: scale(1.1);
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: #00d4ff;
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.7);
+        }
+
+        input[type="checkbox"]:checked:hover {
+            transform: scale(1.15);
+        }
+
+        #error-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 59, 48, 0.9);
+            border: 2px solid #ff3b30;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 400px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(255, 59, 48, 0.5);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        #error-container.show {
+            display: block;
+        }
+
+        #error-message {
+            color: white;
+            font-size: 14px;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        #error-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        #error-close:hover {
+            transform: scale(1.2);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(450px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        checkboxes
+    </h1>
+    <div id="error-container">
+        <button id="error-close">&times;</button>
+        <p id="error-message"></p>
+    </div>
+    <div id="container"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io()
+        const container = document.getElementById('container')
+        const checkbox_count = 100
+        const errorContainer = document.getElementById('error-container')
+        const errorMessage = document.getElementById('error-message')
+        const errorClose = document.getElementById('error-close')
+
+        // Show error function
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorContainer.classList.add('show');
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorContainer.classList.remove('show');
+            }, 5000);
+        }
+
+        // Close button handler
+        errorClose.addEventListener('click', () => {
+            errorContainer.classList.remove('show');
+        });
+
+        socket.on('server:error', (data) => {
+            console.log(`socket server error event`, data);
+            const errorMsg = data.error || 'An error occurred';
+            showError(errorMsg);
+        });
+
+
+        socket.on('server:checkbox:change', (data) => {
+            console.log(`socket server event`, data);
+            const {index, checked } = data
+
+            const input = document.getElementById(`checkbox-${index}`)
+            if(input) {
+                input.checked = checked;
+            }
+        });
+
+        window.addEventListener('load', async() => {
+            const response = await fetch('/checkboxes', {method: 'GET'})
+            const data = await response.json()
+            if(data && data.checkboxes) {
+                data.checkboxes.forEach((serverValue,index) => {
+                     const input = document.createElement('input')
+                    input.type = 'checkbox'
+                    input.id = `checkbox-${index}`
+                    input.checked = serverValue;
+
+                    input.addEventListener('change', event => {
+                const checked = event.target.checked
+                console.log(`checkbox changed`, {index, checked});
+                socket.emit('client:checkbox:change', {index,checked})
+                
+            })
+            container.appendChild(input)
+                }
+        )}
+        })
+
+    </script>
+</body>
+</html>
