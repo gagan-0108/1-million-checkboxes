@@ -4,7 +4,8 @@ services:
     ports:
       - "${PORT:-7000}:${PORT:-7000}"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       - REDIS_HOST=valkey
       - REDIS_PORT=6379
