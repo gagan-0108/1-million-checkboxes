@@ -3,15 +3,38 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  retryStrategy(times) {
+/**
+ * Build Redis connection config.
+ * Supports REDIS_URL (used by Render, Railway, and most cloud providers)
+ * or falls back to separate REDIS_HOST + REDIS_PORT (for local / docker-compose).
+ */
+function getRedisConfig() {
+  const retryStrategy = (times) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
-  },
-  maxRetriesPerRequest: 3,
-};
+  };
+
+  // If REDIS_URL is provided, use it directly (supports redis:// and rediss:// for TLS)
+  if (process.env.REDIS_URL) {
+    return {
+      url: process.env.REDIS_URL,
+      retryStrategy,
+      maxRetriesPerRequest: 3,
+      // Enable TLS for rediss:// URLs (managed Redis services)
+      ...(process.env.REDIS_URL.startsWith('rediss://') && {
+        tls: { rejectUnauthorized: false },
+      }),
+    };
+  }
+
+  // Fallback to separate host/port
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    retryStrategy,
+    maxRetriesPerRequest: 3,
+  };
+}
 
 /**
  * Creates a new Redis connection instance.
@@ -19,10 +42,22 @@ const REDIS_CONFIG = {
  * (Redis requires dedicated connections for subscribe mode)
  */
 function createRedisClient(label = 'default') {
-  const client = new Redis(REDIS_CONFIG);
+  const config = getRedisConfig();
+
+  // ioredis accepts a URL string as the first argument
+  const client = config.url
+    ? new Redis(config.url, {
+        retryStrategy: config.retryStrategy,
+        maxRetriesPerRequest: config.maxRetriesPerRequest,
+        ...(config.tls ? { tls: config.tls } : {}),
+      })
+    : new Redis(config);
 
   client.on('connect', () => {
-    console.log(`[Redis:${label}] Connected to ${REDIS_CONFIG.host}:${REDIS_CONFIG.port}`);
+    const target = config.url
+      ? config.url.replace(/\/\/.*@/, '//***@') // hide credentials in logs
+      : `${config.host}:${config.port}`;
+    console.log(`[Redis:${label}] Connected to ${target}`);
   });
 
   client.on('error', (err) => {

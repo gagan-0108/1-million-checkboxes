@@ -60,12 +60,14 @@ async function main() {
   initializeSocket(io);
 
   // ── Start server ──
-  server.listen(PORT, () => {
+  // Bind to 0.0.0.0 so the server is reachable inside Docker / cloud containers
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n╔══════════════════════════════════════════╗`);
     console.log(`║  🔲 Million Checkboxes Server            ║`);
-    console.log(`║  🌐 http://localhost:${PORT}               ║`);
+    console.log(`║  🌐 http://0.0.0.0:${PORT}                 ║`);
     console.log(`║  📡 WebSocket ready                      ║`);
     console.log(`║  🔴 Redis connected                      ║`);
+    console.log(`║  🌍 ENV: ${process.env.NODE_ENV || 'development'}                  ║`);
     console.log(`╚══════════════════════════════════════════╝\n`);
   });
 
