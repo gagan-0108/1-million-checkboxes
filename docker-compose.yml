@@ -2,11 +2,12 @@ services:
   app:
     build: .
     ports:
-      - "${PORT:-7000}:${PORT:-7000}"
+      - "7000:7000"
     env_file:
       - path: .env
         required: false
     environment:
+      - PORT=7000
       - REDIS_HOST=valkey
       - REDIS_PORT=6379
     depends_on:
