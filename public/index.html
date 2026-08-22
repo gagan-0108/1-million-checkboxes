@@ -184,7 +184,7 @@
         });
 
         window.addEventListener('load', async() => {
-            const response = await fetch('/checkboxes', {method: 'GET'})
+            const response = await fetch('/api/checkboxes', {method: 'GET'})
             const data = await response.json()
             if(data && data.checkboxes) {
                 data.checkboxes.forEach((serverValue,index) => {
